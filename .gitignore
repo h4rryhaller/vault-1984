@@ -1,0 +1,8 @@
+# Compilación y herramientas descargadas
+build/
+herramienta/bin/
+herramienta/.venv/
+__pycache__/
+
+# Documentación de terceros (solo en local)
+*.pdf
