@@ -150,6 +150,8 @@ La idea (2026-11-16): que el aparato avise (pitido y LED) y pregunte **aceptar o
   - El texto completo debe poder leerse (desplazar con el joystick) antes de aceptar.
   - Bloqueado: avisa, se puede denegar, pero aceptar exige desbloquear con el PIN.
 - **Orden:** 1) solo avisar; 2) preguntar y responder con `preguntar`; 3) responder a los permisos de Claude Code. Se puede hacer primero en el Ardutype, que ya tiene puerto serie, buzzer, LED, pantalla y joystick.
+- **Probado en el Ardutype (2026-11-16):** avisos, `preguntar` y el hook `PermissionRequest` de Claude Code (aceptar, denegar y sin respuesta) funcionan. Pero mientras el hook espera, Claude Code no deja contestar en la terminal, y no hay forma de preguntar primero en la terminal y luego en el aparato.
+- **Decisión del usuario (2026-11-16): contestar siempre en la terminal.** Se quita el hook `PermissionRequest` y queda solo el aviso (`Notification`, que para las peticiones de permiso salta ~6 s después si no se ha tecleado nada): el aparato pita y enseña qué se pide, y se contesta en la terminal. `preguntar` sí lo hace en dos pasos: primero en la terminal y, si en 10 s (`-e`) no hay respuesta, también en el aparato; vale la primera respuesta. Sin terminal (cron, hooks, segundo plano) pregunta directamente en el aparato.
 
 ### 9.3 Desbloqueo con gesto («código Konami»)
 
