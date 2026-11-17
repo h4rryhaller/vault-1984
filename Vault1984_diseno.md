@@ -137,6 +137,8 @@ Notas de diseño:
 - **Meter números con el joystick** es pesado: incrementos con aceleración al mantener pulsado, valores por defecto razonables y recordar los últimos usados.
 - No hace falta desbloquear: no toca secretos guardados.
 
+**Prototipo en el Ardutype (2026-11-17, fase 12 de su documento).** Se hace todo lo de la tabla y, además, a propuesta de Claude: **PIN** (4-12 cifras, con ceros a la izquierda), **dados de rol** (d4 a d100), **alias** (`palabra-palabra-NN`, con la lista Diceware), **MAC aleatoria** (administrada localmente) y una **prueba del azar** (6000 dados, histograma y chi²). Descartados por ahora: barajar y cartas. Contraseña con casillas por conjunto y «excluir parecidos». Efecto ruleta (valores cada vez más lentos, clic del zumbador; en Color, el LED cambia a la vez). Accesible bloqueado (izquierda en la pantalla de bloqueo). **Diceware con la lista del Ardutype** (1459 palabras, ~10,5 bits por palabra) para no invalidar la clave de recuperación; en la Vault se puede reconsiderar una lista grande, solo para generar.
+
 ### 9.2 Notificaciones y confirmaciones
 
 La idea (2026-11-16): que el aparato avise (pitido y LED) y pregunte **aceptar o denegar**, desde cualquier sitio del PC: scripts de bash y Claude Code cuando pide permiso y el usuario está en otro escritorio. Patrón conocido: la confirmación en un aparato aparte, como una cartera hardware o el toque de una YubiKey.
