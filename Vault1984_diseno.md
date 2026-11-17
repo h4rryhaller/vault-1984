@@ -191,6 +191,70 @@ La idea (2026-11-16): si el usuario no da señales cada cierto tiempo, se lanza 
 - **Variante relacionada (tipo BusKill):** si se desenchufa el aparato, el PC se bloquea. Es una regla de udev al desconectar `239a:8106`; no necesita firmware.
 - Se puede hacer ya en el Ardutype (la opción 1).
 
+#### Casos de uso (2026-11-17)
+
+De más útil a más especulativo:
+
+1. **Te levantas con «mantener sesión» activado.** El ratón simulado impide el bloqueo por inactividad; el interruptor lo compensa.
+2. **Te llevas el aparato y dejas el PC.** Si lo llevas encima, al alejarte dejas de pulsar y el PC se bloquea: un bloqueo por proximidad sin radio. Se complementa con la variante tipo BusKill (desenchufar = bloqueo inmediato).
+3. **Te duermes delante del PC.** Plazo largo (1-2 h) y la acción es hibernar.
+4. **Cerrar el disco cifrado del propio Vault.** El RP2350 desmonta la microSD y borra la clave de su RAM. No depende del PC, así que funciona también en un PC ajeno o colgado.
+5. **Bloquear secretos en el PC** sin bloquear la sesión: KeePassXC (por D-Bus), agente SSH (`ssh-add -D`), portapapeles.
+6. **Modo ausente para las notificaciones (9.2).** Mientras el interruptor detecta que no estás, `preguntar` contesta «no» automáticamente (o pausa lo que pide confirmación) en vez de pitar a nadie. Una pulsación lo quita.
+7. **Avisar a otra persona** si no hay señal en N horas o días (por ejemplo, si vives solo). Depende de que el PC esté encendido y conectado: el aparato no tiene radio.
+8. **Legado digital** (entregar el acceso de emergencia tras semanas sin señal). Es el uso clásico, pero aquí está mal planteado: el aparato no está siempre enchufado y un falso positivo filtraría secretos. Mejor un servicio aparte.
+
+**Descartado:** acciones destructivas (borrar la clave del disco, agotar los intentos del ATECC). Un olvido o un fin de semana fuera haría perder datos reales.
+
+#### Niveles en cascada
+
+En vez de una sola acción, varios niveles con su propio plazo desde la última pulsación. Cada uno avisa antes (pitido y LED) y una pulsación lo aplaza. Ejemplo:
+
+| Nivel | Plazo | Acción |
+|---|---|---|
+| 1 | 10 min | Bloquear secretos (caso 5) |
+| 2 | 15 min | Bloquear la sesión |
+| 3 | 30 min | Cerrar el disco del Vault |
+| 4 | 2 h | Hibernar |
+
+Los plazos se cambian en Ajustes; los niveles que no se quieran se desactivan.
+
+#### Varios equipos: Linux y Windows
+
+**El aparato no sabe nada del sistema operativo.** Emite eventos abstractos por el puerto serie (`MUERTO 2 bloquear`) y cada PC decide qué ejecutar. Firmware único; la configuración vive en cada equipo.
+
+- **Un archivo de acciones por equipo:** `~/.config/vault1984/acciones.toml` en Linux, `%APPDATA%\vault1984\acciones.toml` en Windows. Un nivel que no esté no hace nada en ese equipo.
+
+  Linux (parrot):
+  ```toml
+  equipo = "parrot"
+  [nivel.1]   # secretos
+  ordenes = ["dbus-send --session --dest=org.keepassxc.KeePassXC.MainWindow /keepassxc org.keepassxc.KeePassXC.MainWindow.lockAllDatabases",
+             "ssh-add -D", "xsel -bc"]
+  [nivel.2]   # sesión
+  ordenes = ["xset s activate"]          # dispara xss-lock + i3lock
+  [nivel.4]   # hibernar
+  ordenes = ["systemctl hibernate"]
+  ```
+
+  Windows:
+  ```toml
+  equipo = "portatil-win"
+  [nivel.1]
+  ordenes = ["ssh-add -D", "powershell -c Set-Clipboard -Value $null"]
+  [nivel.2]
+  ordenes = ["rundll32.exe user32.dll,LockWorkStation"]
+  [nivel.4]
+  ordenes = ["shutdown /h"]
+  ```
+
+  Pendiente: KeePassXC en Windows no tiene D-Bus; comprobar si la versión instalada admite `--lock` por línea de órdenes.
+
+- **Saludo y confirmación.** Al conectarse, el servicio se presenta (`HOLA parrot linux`): el aparato sabe que hay alguien escuchando y en qué equipo está. Tras cada acción responde `HECHO 2`, y el aparato lo muestra.
+- **Plan B sin servicio** (PC ajeno, o el servicio no responde en unos segundos): el aparato pulsa **Super+L**. Windows lo trae de serie; en Linux se añade ese mismo atajo en sxhkd para que llame a i3lock. Un único atajo vale para los dos sistemas sin que el aparato adivine cuál es.
+- **El nivel del disco pide permiso antes de cerrar.** Cortar la microSD con escrituras pendientes puede corromper el sistema de archivos. Primero pide al PC que desmonte (`udisksctl unmount` en Linux, expulsar la unidad en Windows) y, con el `HECHO`, borra la clave. Sin servicio, cierra igualmente tras un plazo de gracia: proteger los datos pesa más que el riesgo de corrupción.
+- **El servicio en cada sistema:** en Linux, servicio de usuario de systemd; en Windows, tarea programada al iniciar sesión con `pythonw` (sin ventana). El `notificar.py` del Ardutype usa `flock` y solo vale en Linux: para Windows, `pyserial` o empaquetarlo con PyInstaller.
+
 ### 9.6 Códigos TOTP
 
 La idea (2026-11-16): generar los códigos de 6 cifras de la verificación en dos pasos y teclearlos.
