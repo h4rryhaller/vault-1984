@@ -24,8 +24,9 @@ El nombre: el refugio numerado de *Fallout* («Vault 101», «Vault 111») con e
 | Entrada | **Joystick de 5 direcciones**, el mismo | |
 | Sonido | **Piezo pasivo pequeño** (9-12 mm) con **100 Ω** | Como el del Ardutype, más pequeño |
 | LED | El WS2812 de la placa | |
+| Mando | **Receptor de infrarrojos VS1838B** (suelto o en módulo, ya disponibles) y un mando pequeño | Botones de acceso rápido sin desbloquear (9.10). Un solo pin |
 
-**Pines necesarios:** pantalla 2 (I2C1), ATECC 2 (I2C0), joystick 5, zumbador 1, microSD 4 (SPI0) + 1 opcional (detección de tarjeta) = **14-15**. La asignación concreta, al tener la placa y su pinout.
+**Pines necesarios:** pantalla 2 (I2C1), ATECC 2 (I2C0), joystick 5, zumbador 1, microSD 4 (SPI0) + 1 opcional (detección de tarjeta), receptor IR 1 = **15-16**. La asignación concreta, al tener la placa y su pinout.
 
 **Lecciones del Ardutype que se mantienen:** el OLED y el ATECC en **buses I2C separados** (compartiendo bus, el tráfico de la pantalla despertaba al chip a mitad de una orden); pull-ups externas de 4,7 kΩ en el bus del ATECC (las internas no bastaron); aislar las patas del chip.
 
@@ -74,11 +75,11 @@ Parte de la revisión de seguridad del Ardutype (2026-11-15). Lo que cambia:
 
 ## 5. Firmware: qué se reutiliza
 
-El core es el mismo (arduino-pico de Earle Philhower, que ya soporta el RP2350), así que casi todo el código del Ardutype pasa tal cual: `boveda`, `cripto`, `atecc`, `almacen`, `admin`, `guion`, `teclado`, `pomodoro`, `mantener`, `zumbador`, `led`, `joystick`, `utf8`, y la herramienta de sincronización. Cambian `pantalla` y `ui` (128 × 64: 4 filas) y la comprobación del Flash Size de `config.h` (otra placa, otra memoria). Nuevos: `disco` (TinyUSB *mass storage* + AES-XTS) y `sd` (acceso a la microSD por SPI).
+El core es el mismo (arduino-pico de Earle Philhower, que ya soporta el RP2350), así que casi todo el código del Ardutype pasa tal cual: `boveda`, `cripto`, `atecc`, `almacen`, `admin`, `guion`, `teclado`, `pomodoro`, `mantener`, `zumbador`, `led`, `joystick`, `utf8`, y la herramienta de sincronización. Cambian `pantalla` y `ui` (128 × 64: 4 filas) y la comprobación del Flash Size de `config.h` (otra placa, otra memoria). Nuevos: `disco` (TinyUSB *mass storage* + AES-XTS), `sd` (acceso a la microSD por SPI) y `mando` (receptor IR y guiones de acceso rápido, 9.10).
 
 ## 6. Fases
 
-1. **Prototipo en protoboard:** placa, OLED de 1,3", joystick, ATECC608B, piezo y microSD. Sketch de prueba de cada pieza.
+1. **Prototipo en protoboard:** placa, OLED de 1,3", joystick, ATECC608B, piezo, microSD y receptor IR. Sketch de prueba de cada pieza (el del IR, `prueba_ir/`, solo imprime por serie el protocolo, la dirección y el código de cada botón del mando, y si es repetición).
 2. **Portar el Ardutype** al RP2350 y a la pantalla de 4 filas. Que funcione igual que el Ardutype.
 3. **Disco USB sin cifrar:** el PC ve la microSD tal cual. Aprender TinyUSB, comprobar que convive con teclado, ratón y puerto serie, y **medir la velocidad**.
 4. **Disco cifrado:** AES-XTS por sector (con los vectores de prueba del IEEE 1619), clave envuelta en la bóveda; bloqueado = sin tarjeta.
@@ -94,6 +95,7 @@ El core es el mismo (arduino-pico de Earle Philhower, que ya soporta el RP2350),
 5. **Arranque seguro con arduino-pico:** flujo para firmar (`picotool seal --sign`) los binarios que genera el core, y cómo encaja con `subir.sh`.
 6. **Copias de seguridad del disco:** ¿copiar la microSD cifrada tal cual (imagen) basta? Importa sobre todo para la zona de archivo (sección 3, idea 3): el aparato no puede ser el único sitio donde estén esos documentos.
 7. **Hora para TOTP (9.6):** ¿la da el PC al conectar o un reloj propio con pila (DS3231)?
+8. **Mando IR (9.10):** ¿una pulsación del mando cuenta como señal de vida para el hombre muerto (9.5)? Propuesta: no. ¿Qué hace la pulsación larga en los botones sin estado: un segundo guion o nada?
 
 ## 8. Compras
 
@@ -103,7 +105,7 @@ El core es el mismo (arduino-pico de Earle Philhower, que ya soporta el RP2350),
 - 1 × breakout microSD de 3,3 V sin regulador.
 - 1 × piezo pasivo de 9-12 mm.
 - 1 × microSD de prueba (sin datos que importen).
-- Ya disponibles: ATECC608B (y adaptador SOIC-8), joystick, resistencias de 100 Ω y 4,7 kΩ, condensador de 100 nF.
+- Ya disponibles: ATECC608B (y adaptador SOIC-8), joystick, resistencias de 100 Ω y 4,7 kΩ, condensador de 100 nF, receptor IR VS1838B (suelto y otro en módulo) y algún mando pequeño. Para el filtro del receptor, un electrolítico de 4,7-10 µF.
 
 ## 9. Navaja suiza: funciones extra
 
@@ -289,6 +291,67 @@ La idea (2026-11-16): llevar e introducir claves SSH o certificados.
 ### 9.9 Prioridades propuestas (2026-11-16)
 
 Primero lo que se puede probar ya en el Ardutype y cuesta poco: notificaciones (9.2, avisar), interruptor del hombre muerto con atajo (9.5), teclado de emergencia (9.4), aleatoriedad (9.1). Después, con la Vault 1984: disco cifrado, TOTP con reloj propio, U2F → FIDO2 (y con él SSH).
+
+**Actualización (2026-11-18):** el mando IR (9.10) entra desde la fase 1 de la Vault, en la protoboard, junto con la microSD.
+
+### 9.10 Mando por infrarrojos: accesos rápidos
+
+La idea (2026-11-18): botones de acceso rápido **sin desbloquear**, cada uno con su guion (escribir un texto, un atajo, silenciar…). Sustituye al **Paduino**, una botonera USB aparte que se descartó por no querer otro cacharro en la mesa. Aquí basta un receptor IR en un pin libre y un mando pequeño que se guarda en el cajón: 17-21 botones por casi nada, y el resto lo pone el firmware que ya hay (guiones, distribuciones de teclado, pantalla y LED para avisar).
+
+**Hardware**
+
+- **VS1838B** (38 kHz), alimentado a **3,3 V** (admite 2,7-5,5 V; a 3,3 V su salida va directa al GPIO). Filtro en la alimentación: 100 Ω en serie y 4,7-10 µF a GND junto al receptor. La versión en módulo suele traer resistencia y un LED que parpadea al recibir: sirve para la protoboard.
+- **Patillas del VS1838B suelto:** normalmente OUT, GND y VCC mirando a la cúpula, pero varía entre fabricantes: comprobar en la ficha o con el módulo antes de soldar.
+- **Visto desde fuera:** el receptor tiene que mirar hacia el usuario en la carcasa (fase 6), con una ventana o un plástico que deje pasar el infrarrojo.
+- **Decodificación:** la biblioteca **IRremote** (comprobar que compila con el RP2350 en arduino-pico); si da problemas, el ejemplo `nec_receive` del pico-sdk decodifica NEC con un PIO, sin interrupciones ni temporizadores. Con un solo tipo de mando, basta NEC.
+
+**Guiones**
+
+- Misma sintaxis que los del Ardutype (`ESCRIBIR`, `TECLA`, `PAUSA`, `#`), **sin `$usuario` ni `$contrasena`**. Novedades, que también podrán usar el hombre muerto y los servicios:
+  - **Teclas multimedia** (informe de consumo, como el `KEY_SLEEP` del hombre muerto): `silencio`, `volmas`, `volmenos`, `play`, `siguiente`, `anterior`, `parar`, `suspender`.
+  - **Bloqueos:** `bloqmayus`, `bloqnum`, `bloqdespl`.
+  - **Cabecera opcional** con el tipo de botón:
+
+```
+# Sin estado (por defecto): pegar un texto
+ESCRIBIR Un saludo,
+TECLA intro
+ESCRIBIR Nono
+
+# Conmutador con la misma acción en las dos pulsaciones
+MODO conmutador
+TECLA silencio
+
+# Conmutador con una acción para encender y otra para apagar
+MODO conmutador
+AL_ENCENDER
+TECLA ctrl+mays+r
+AL_APAGAR
+TECLA ctrl+mays+s
+```
+
+- **Un fichero por botón** en LittleFS, sin cifrar (fuera de la bóveda, para que funcione bloqueado): `/mando/NN.txt`, máximo provisional 512 bytes, como `/muerto.txt`.
+- **Carga desde el PC:** `vault1984-mando cargar | ver | borrar`, como `ardutype-muerto` (solo biblioteca estándar, el mismo `flock`), con los guiones en `~/.config/vault1984/mando/`. Comprueba la sintaxis en el PC y el aparato la vuelve a comprobar; pide estar desbloqueado y confirmar en la pantalla, porque cambiar lo que teclea un botón es cambiar lo que el aparato puede hacer sin PIN.
+
+**Estado y avisos**
+
+- El mando no recibe nada: **no hay LED por botón**. Al pulsar, la pantalla enseña un aviso breve («Silencio: sí», «Saludo: tecleado») y el LED da un destello.
+- **Conmutadores:** el estado lo lleva el aparato y es **supuesto**: se desincroniza si se cambia por otro lado (p. ej. silenciar desde el escritorio). Todos empiezan apagados al conectar el USB, y una **pulsación larga** del botón (el mando NEC repite el código mientras se mantiene, ~110 ms) cambia el estado sin ejecutar nada, para resincronizar. Un menú «Mando» lista los conmutadores con su estado y permite cambiarlos con el joystick.
+- Opcional, más adelante: el servicio del PC (9.5) podría mandar el estado real (p. ej. el silencio con `pactl`). Debe funcionar igual sin él.
+
+**Emparejar el mando**
+
+- **Modo aprender** (menú «Mando», desbloqueado): se elige la ranura, se pulsa el botón del mando y se guarda su **protocolo, dirección y código** en `/mando.bin`, junto con el nombre que se verá en pantalla. Lo que no esté registrado **se ignora**: así no lo dispara el mando de la tele aunque use el mismo protocolo.
+- `prueba_ir/` sirve antes para ver qué manda cada mando y elegir uno cuya dirección no coincida con la de otros aparatos de casa.
+
+**Reglas de seguridad**
+
+- **Cualquiera en la habitación con un mando compatible** (o un mando universal que pruebe códigos) puede disparar los guiones, también con el aparato bloqueado. Pero **solo los guiones guardados**: por IR no se puede inyectar texto arbitrario. Por tanto, los guiones del mando tienen que ser **inofensivos en cualquier momento**: textos, atajos, multimedia. Nada de abrir una terminal y ejecutar órdenes, ni nada que borre o envíe.
+- **El mando nunca toca la bóveda ni los menús:** no navega, no desbloquea, no teclea contraseñas, no acepta notificaciones (9.2) ni abre el disco. Solo lanza guiones del mando.
+- **Ni cola ni cuenta atrás:** el botón es la orden explícita; si llega una pulsación mientras se ejecuta otro guion (o se está tecleando una contraseña), se ignora.
+- **Bloq Mayús:** como en el Ardutype, se apaga antes de escribir texto y se restaura al terminar.
+- **Interruptor general** en Ajustes («Mando: sí/no»), por si molesta o en un sitio no fiable.
+- **No reinicia el hombre muerto** por defecto (pregunta abierta 8): esa señal debe darla quien tiene el aparato.
 
 ## 10. Ideas para más adelante (con radio)
 
