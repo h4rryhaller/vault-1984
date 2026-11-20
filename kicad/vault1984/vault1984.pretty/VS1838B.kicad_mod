@@ -1,0 +1,13 @@
+(footprint "VS1838B" (version 20241229) (generator "vault_gen") (generator_version "9.0") (layer "F.Cu") (descr "Receptor IR VS1838B: OUT GND VCC (VERIFICAR); la cúpula mira hacia -Y (hacia fuera de la placa).")
+(property "Reference" "REF**" (at 2.54 -4.7 0) (layer "F.SilkS") (uuid "7bbce29b-e447-46ae-8a1e-045a496504f1") (effects (font (size 1 1) (thickness 0.15))))
+(property "Value" "VS1838B" (at 3.3 -1.0 0) (layer "F.Fab") (uuid "5ccbb60f-812c-4bef-bb18-e4a9e7d055a1") (effects (font (size 1 1) (thickness 0.15))))
+(attr through_hole)
+(fp_rect (start -1.5 -3.5) (end 6.6 1.5) (stroke (width 0.15) (type solid)) (fill no) (layer "F.SilkS") (uuid "9be449f4-9cb4-4d79-9f36-ce7f006bb3be"))
+(fp_rect (start -1.5 -3.5) (end 6.6 1.5) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab") (uuid "1f0c9f64-229d-44bc-931e-45ff24247509"))
+(fp_rect (start -1.75 -3.75) (end 6.85 1.75) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd") (uuid "ad86de07-758b-4b4f-8960-a3e3b6f41f66"))
+(fp_text user "cúpula" (at 2.54 -2.2 0) (layer "F.Fab") (uuid "30d30f20-0a7b-4023-9c82-ae0883da9fc8") (effects (font (size 0.8 0.8) (thickness 0.10))))
+(pad "1" thru_hole rect (at 0.000 0.000) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (uuid "216f6787-d5bb-483e-8dcf-01d99dd70e03"))
+(pad "2" thru_hole circle (at 2.540 0.000) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (uuid "d94c93a9-0490-4bb8-817b-ea8123be7588"))
+(pad "3" thru_hole circle (at 5.080 0.000) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (uuid "9f5d577d-8eeb-4949-a842-194b57050a24"))
+
+)

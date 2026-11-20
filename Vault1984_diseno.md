@@ -9,7 +9,7 @@
 - **Por cable, sin radio** (decisión del usuario, 2026-11-15): nada de wifi ni Bluetooth, como el Ardutype. Las ideas con radio quedan en la sección 10.
 - **Proyecto para aprender**, pero pensado para usarse en la práctica.
 - **Hereda todo el Ardutype:** bóveda de contraseñas con el ATECC608B limitando los intentos del PIN, clave de recuperación de 8 palabras, guiones, sincronización con KeePassXC, pomodoro, mantener sesión, `subir.sh` y las copias de seguridad.
-- **Lo nuevo:** el disco cifrado, una pantalla más grande, y el **arranque seguro** del RP2350, que cierra el punto más grave de la revisión de seguridad del Ardutype (firmware no autorizado).
+- **Lo nuevo:** el disco cifrado y el **arranque seguro** del RP2350, que cierra el punto más grave de la revisión de seguridad del Ardutype (firmware no autorizado).
 
 El nombre: el refugio numerado de *Fallout* («Vault 101», «Vault 111») con el número de la novela de Orwell.
 
@@ -18,7 +18,7 @@ El nombre: el refugio numerado de *Fallout* («Vault 101», «Vault 111») con e
 | Pieza | Elección | Por qué |
 |---|---|---|
 | Placa | **Waveshare RP2350-Zero** (~23 × 18 mm, USB-C, LED RGB WS2812 en la placa) | Más pequeña que la KB2040 (descatalogada), con LED propio y pines de sobra. Comprar **2-3**: el arranque seguro se prueba grabando la OTP, sin vuelta atrás, en una de sacrificio. Si se puede, revisión del chip **A4** (la A2 tiene la errata E9 con los *pull-down* internos; usamos *pull-up*, pero mejor evitarla). Alternativas: Pico 2 (más grande, micro-USB), XIAO RP2350 (justa de pines) |
-| Pantalla | **OLED de 1,3" 128 × 64, I2C** (SH1106 o SSD1306) | El doble de alta que la del Ardutype (4 filas de menú en vez de 2) con la misma librería (U8g2): cambio mínimo de código. Una TFT a color obligaría a rehacer el dibujo (pregunta abierta) |
+| Pantalla | **La del Ardutype: OLED SSD1306 de 0,91" 128 × 32, I2C** (DollaTek) | Decisión del usuario (2026-11-19). La interfaz del Ardutype pasa tal cual. Antes se propuso una de 1,3" 128 × 64 (4 filas de menú) |
 | Almacenamiento | **Módulo microSD de 3,3 V, sin regulador ni adaptador de niveles** (p. ej. el breakout microSD «3V only» de Adafruit), por **SPI** | Pequeño. El SPI da más velocidad de la que el USB puede aprovechar |
 | Seguridad | **ATECC608B** en su propio bus I2C con pull-ups de 4,7 kΩ | Como en el Ardutype (quedan chips de sobra). Limita los intentos del PIN con un contador que no se puede rebobinar |
 | Entrada | **Joystick de 5 direcciones**, el mismo | |
@@ -26,7 +26,19 @@ El nombre: el refugio numerado de *Fallout* («Vault 101», «Vault 111») con e
 | LED | El WS2812 de la placa | |
 | Mando | **Receptor de infrarrojos VS1838B** (suelto o en módulo, ya disponibles) y un mando pequeño | Botones de acceso rápido sin desbloquear (9.10). Un solo pin |
 
-**Pines necesarios:** pantalla 2 (I2C1), ATECC 2 (I2C0), joystick 5, zumbador 1, microSD 4 (SPI0) + 1 opcional (detección de tarjeta), receptor IR 1 = **15-16**. La asignación concreta, al tener la placa y su pinout.
+**Pines (propuesta, 2026-11-19; esquemático en [`kicad/vault1984/`](./kicad/vault1984/)).** Se mantienen los del Ardutype, que existen todos en la RP2350-Zero, así que su `config.h` apenas cambia. La microSD ocupa la fila inferior de la placa, que coincide con el SPI1. Pinout de la RP2350-Zero supuesto igual al de la RP2040-Zero: **verificarlo con la placa**.
+
+| Señal | GPIO | Notas |
+|---|---|---|
+| ATECC SDA / SCL | GP0 / GP1 | I2C0, pull-ups de 4,7 kΩ a 3V3 y 100 nF junto al chip |
+| Joystick arriba, derecha, izquierda, abajo, centro | GP2-GP6 | Común a GND, pull-up interno |
+| Receptor IR (OUT) | GP7 | VS1838B a 3V3 con 100 Ω en serie y 10 µF a GND |
+| Zumbador | GP8 | 100 Ω en serie con el piezo |
+| microSD DET, CLK, MOSI, MISO, CS | GP9-GP13 | SPI1 (SCK GP10, TX GP11, RX GP12); DET con pull-up interno; 10 µF en la alimentación del módulo |
+| OLED SCL / SDA | GP27 / GP26 | I2C1, como en el Ardutype |
+| Reloj DS3231 (SCL / SDA) | GP27 / GP26 | En el mismo bus I2C1 que el OLED (0x68 frente a 0x3C). Módulo mini con pila propia |
+| LED WS2812 | GP16 | En la propia placa |
+| Libres | GP14, GP15, GP28, GP29 | |
 
 **Lecciones del Ardutype que se mantienen:** el OLED y el ATECC en **buses I2C separados** (compartiendo bus, el tráfico de la pantalla despertaba al chip a mitad de una orden); pull-ups externas de 4,7 kΩ en el bus del ATECC (las internas no bastaron); aislar las patas del chip.
 
@@ -75,12 +87,12 @@ Parte de la revisión de seguridad del Ardutype (2026-11-15). Lo que cambia:
 
 ## 5. Firmware: qué se reutiliza
 
-El core es el mismo (arduino-pico de Earle Philhower, que ya soporta el RP2350), así que casi todo el código del Ardutype pasa tal cual: `boveda`, `cripto`, `atecc`, `almacen`, `admin`, `guion`, `teclado`, `pomodoro`, `mantener`, `zumbador`, `led`, `joystick`, `utf8`, y la herramienta de sincronización. Cambian `pantalla` y `ui` (128 × 64: 4 filas) y la comprobación del Flash Size de `config.h` (otra placa, otra memoria). Nuevos: `disco` (TinyUSB *mass storage* + AES-XTS), `sd` (acceso a la microSD por SPI) y `mando` (receptor IR y guiones de acceso rápido, 9.10).
+El core es el mismo (arduino-pico de Earle Philhower, que ya soporta el RP2350), así que casi todo el código del Ardutype pasa tal cual: `boveda`, `cripto`, `atecc`, `almacen`, `admin`, `guion`, `teclado`, `pomodoro`, `mantener`, `zumbador`, `led`, `joystick`, `utf8`, y la herramienta de sincronización. Con la misma pantalla, `pantalla` y `ui` no cambian; sí la comprobación del Flash Size de `config.h` (otra placa, otra memoria). Nuevos: `disco` (TinyUSB *mass storage* + AES-XTS), `sd` (acceso a la microSD por SPI) y `mando` (receptor IR y guiones de acceso rápido, 9.10).
 
 ## 6. Fases
 
-1. **Prototipo en protoboard:** placa, OLED de 1,3", joystick, ATECC608B, piezo, microSD y receptor IR. Sketch de prueba de cada pieza (el del IR, `prueba_ir/`, solo imprime por serie el protocolo, la dirección y el código de cada botón del mando, y si es repetición).
-2. **Portar el Ardutype** al RP2350 y a la pantalla de 4 filas. Que funcione igual que el Ardutype.
+1. **Prototipo en protoboard:** placa, OLED del Ardutype, joystick, ATECC608B, piezo, microSD y receptor IR. Sketch de prueba de cada pieza (el del IR, `prueba_ir/`, solo imprime por serie el protocolo, la dirección y el código de cada botón del mando, y si es repetición).
+2. **Portar el Ardutype** al RP2350. Que funcione igual que el Ardutype.
 3. **Disco USB sin cifrar:** el PC ve la microSD tal cual. Aprender TinyUSB, comprobar que convive con teclado, ratón y puerto serie, y **medir la velocidad**.
 4. **Disco cifrado:** AES-XTS por sector (con los vectores de prueba del IEEE 1619), clave envuelta en la bóveda; bloqueado = sin tarjeta.
 5. **Arranque seguro**, primero en una placa de sacrificio: firmar con `picotool`, grabar la OTP, desactivar la depuración.
@@ -88,24 +100,26 @@ El core es el mismo (arduino-pico de Earle Philhower, que ya soporta el RP2350),
 
 ## 7. Preguntas abiertas
 
-1. **Pantalla:** ¿OLED monocromo de 128 × 64 (propuesta) o TFT a color?
+1. ~~**Pantalla:** ¿OLED monocromo de 128 × 64 o TFT a color?~~ Resuelto (2026-11-19): la del Ardutype, 0,91" 128 × 32.
 2. **¿Dónde va la clave del disco?** (a) Solo en la bóveda de la flash interna: la microSD sola no sirve de nada, pero si se pierde el aparato se pierden los datos (salvo copia con `respaldo.sh`). (b) También en una cabecera de la microSD, envuelta con la clave de recuperación: los datos se recuperan con otro Vault 1984, a cambio de que la tarjeta lleve un ataque posible contra la clave de recuperación (84 bits con PBKDF2: no se rompe por fuerza bruta).
 3. **Bloqueo con el disco montado:** si el aparato se bloquea solo y el disco desaparece de golpe, el PC puede perder lo que tenga pendiente de escribir. ¿No bloquear mientras haya escrituras recientes? ¿Avisar antes? ¿Expulsar de forma ordenada?
 4. **Disco y USB en el core:** el core trae `FatFSUSB` (expone un FatFS como disco USB); para cifrar hace falta trabajar con sectores en crudo (las funciones `tud_msc_*` de TinyUSB). Comprobar cómo hacerlo sin chocar con el core.
 5. **Arranque seguro con arduino-pico:** flujo para firmar (`picotool seal --sign`) los binarios que genera el core, y cómo encaja con `subir.sh`.
 6. **Copias de seguridad del disco:** ¿copiar la microSD cifrada tal cual (imagen) basta? Importa sobre todo para la zona de archivo (sección 3, idea 3): el aparato no puede ser el único sitio donde estén esos documentos.
-7. **Hora para TOTP (9.6):** ¿la da el PC al conectar o un reloj propio con pila (DS3231)?
+7. ~~**Hora para TOTP (9.6):** ¿la da el PC al conectar o un reloj propio con pila (DS3231)?~~ Resuelto (2026-11-20): reloj propio, módulo mini DS3231 (el de la Raspberry Pi, unos 14 × 14 mm, tira + D C NC -) en el bus del OLED. El PC puede proponer la hora, pero el aparato rechaza saltos sospechosos.
 8. **Mando IR (9.10):** ¿una pulsación del mando cuenta como señal de vida para el hombre muerto (9.5)? Propuesta: no. ¿Qué hace la pulsación larga en los botones sin estado: un segundo guion o nada?
 
 ## 8. Compras
 
 - 2 × **Waveshare RP2350-Zero** (2026-11-15), sin pines soldados (llega antes y se le sueldan dos tiras para la protoboard; la -M es la misma con los pines ya soldados): USB-C **hembra** y 4 MB de flash. Sin wifi ni Bluetooth (los anuncios mezclan datos de la Raspberry Pi Zero 2 W). Una para trabajar y otra de sacrificio para el arranque seguro. Los anuncios no dicen la revisión del chip (A2/A4): no afecta, usamos *pull-up*.
   - Descartada de momento la **RP2350-Zero-CM** (USB-C **macho**, se enchufa al PC como un pendrive, 2 MB de flash): pulsar el joystick con el aparato clavado en el puerto hace palanca sobre los conectores, y solo encaja en puertos USB-C. Se puede valorar para la fase 6 si se quiere forma de pendrive.
-- 1 × OLED 1,3" 128 × 64 I2C (SH1106 o SSD1306).
+- ~~1 × OLED 1,3" 128 × 64 I2C~~: se usa el OLED de 0,91" del Ardutype (comprar otro igual si el Ardutype sigue en uso).
 - 1 × breakout microSD de 3,3 V sin regulador.
 - 1 × piezo pasivo de 9-12 mm.
 - 1 × microSD de prueba (sin datos que importen).
-- Ya disponibles: ATECC608B (y adaptador SOIC-8), joystick, resistencias de 100 Ω y 4,7 kΩ, condensador de 100 nF, receptor IR VS1838B (suelto y otro en módulo) y algún mando pequeño. Para el filtro del receptor, un electrolítico de 4,7-10 µF.
+- Ya disponibles: ATECC608B (y adaptador SOIC-8), joystick, resistencias de 100 Ω y 4,7 kΩ, condensador de 100 nF, receptor IR VS1838B (suelto y otro en módulo) y algún mando pequeño.
+- 2 × electrolítico de 10 µF: filtro del receptor IR y alimentación de la microSD.
+- 1 × módulo reloj DS3231 mini (para Raspberry Pi), con su pila. Comprobar si la pila es recargable y si el módulo lleva circuito de carga.
 
 ## 9. Navaja suiza: funciones extra
 

@@ -1,0 +1,1 @@
+(fp_lib_table (version 7) (lib (name "vault1984") (type "KiCad") (uri "${KIPRJMOD}/vault1984.pretty") (options "") (descr "Vault 1984")))
